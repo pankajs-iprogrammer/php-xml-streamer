@@ -4,7 +4,8 @@
     "require": {
         "prewk/xml-string-streamer": "^0.11.0",
         "nextpertise/pdo-bulk": "dev-master",
-        "kedrigern/phpio": "^0.7.1"
+        "kedrigern/phpio": "^0.7.1",
+        "box/spout": "^2.7"
     },
     "authors": [
         {

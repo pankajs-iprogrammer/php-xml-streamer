@@ -104,7 +104,7 @@ try {
     $ioFiles = $ioFiles->dir(PATH . 'VTOPUP*.xml');
     $file    = $ioFiles->getFiles();
     
-    if (!is_array($file) || $file[0] == '') {
+    if (!is_array($file) || @$file[0] == '') {
         throw new Exception('File not found');
     }
     

@@ -114,7 +114,7 @@ try {
     $ioFiles = $ioFiles->dir(PATH . 'POSTPAID-PLAN*.xml');
     $file    = $ioFiles->getFiles();
     
-    if (!is_array($file) || $file[0] == '') {
+    if (!is_array($file) || @$file[0] == '') {
         throw new Exception('File not found');
     }
     
