@@ -1,0 +1,16 @@
+{
+    "name": "pankajs/xml_streamer",
+    "type": "library",
+    "require": {
+        "prewk/xml-string-streamer": "^0.11.0",
+        "brick/db": "^0.1.1",
+        "nextpertise/pdo-bulk": "dev-master",
+        "kedrigern/phpio": "^0.7.1"
+    },
+    "authors": [
+        {
+            "name": "Pankaj S",
+            "email": "pankajs.iprogrammer@gmail.com"
+        }
+    ]
+}
