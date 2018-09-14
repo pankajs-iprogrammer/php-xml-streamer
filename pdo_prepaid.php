@@ -103,7 +103,6 @@ try {
     $ioFiles = new \Kedrigern\phpIO\Files();
     $ioFiles = $ioFiles->dir(PATH . 'VTOPUP*.xml');
     $file    = $ioFiles->getFiles();
-    
     if (!is_array($file) || @$file[0] == '') {
         throw new Exception('File not found');
     }
@@ -149,7 +148,7 @@ try {
         }
         
         $i++;
-        // $pdoBulk->persist('prepaid_pack', $data2);    
+        $pdoBulk->persist('prepaid_pack', $data2);    
     }
     echo $log['details'] = "$i records Imported successfully :)";
     $ioFiles->move('Processed');

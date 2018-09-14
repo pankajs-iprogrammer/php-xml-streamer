@@ -58,7 +58,7 @@ try {
                                 'outgoing_sms'
                             );
                             $row     = array_combine($columns, $row);
-                            // $pdoBulk->persist('postpaid_call_roaming_tarrif', $row);
+                            $pdoBulk->persist('postpaid_call_roaming_tarrif', $row);
                             break;
                         
                         case 'Postpaid Data Roaming Tarrif':
@@ -67,7 +67,7 @@ try {
                                 'rate'
                             );
                             $row     = array_combine($columns, $row);
-                            // $pdoBulk->persist('postpaid_data_roaming_tarrif', $row);
+                            $pdoBulk->persist('postpaid_data_roaming_tarrif', $row);
                             break;
                         
                         case 'Postpaid':
@@ -92,7 +92,7 @@ try {
                                 'country_flag'
                             );
                             $row     = array_combine($columns, $row);
-                            // $pdoBulk->persist('postpaid', $row);
+                            $pdoBulk->persist('postpaid', $row);
                             break;
                         
                         case 'Prepaid Call Roaming Tarrif':
@@ -105,7 +105,7 @@ try {
                                 'outgoing_sms'
                             );
                             $row     = array_combine($columns, $row);
-                            // $pdoBulk->persist('prepaid_call_roaming_tarrif', $row);
+                            $pdoBulk->persist('prepaid_call_roaming_tarrif', $row);
                             break;
                         
                         case 'Prepaid Data Roaming Tarrif':
@@ -149,7 +149,7 @@ try {
                                 'country'
                             );
                             $row     = array_combine($columns, $row);
-                            //$pdoBulk->persist('country_group', $row);
+                            $pdoBulk->persist('country_group', $row);
                             break;
                         default:
                             # code...
@@ -160,12 +160,12 @@ try {
             $output .= " : Import Completed !!!" . "\n";
         }
     }
-    echo $log['details'] = $output;
+    $log['details'] = $output;
     $ioFiles->move('Processed');
     $reader->close();
 }
 catch (Exception $e) {
-    echo $log['details'] = 'Failed import in IR Data. Details : ' . $e->getMessage();
+    $log['details'] = 'Failed import in IR Data. Details : ' . $e->getMessage();
     $log['status'] = 'ERROR';
 }
 $time_elapsed_secs     = microtime(true) - $start;

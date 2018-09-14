@@ -8,12 +8,11 @@ use PdoBulk\PdoBulk;
 use PdoBulk\PdoBulkSubquery;
 
 // database connection
-$conn    = new \PDO("mysql:host=" . DBHOST . ";dbname=" . DBNAME, DBUSER, DBPASS);
-$pdoBulk = new PdoBulk($conn);
-$pdoBulk->setAutoflush(100);
-
+global $conn    = new \PDO("mysql:host=" . DBHOST . ";dbname=" . DBNAME, DBUSER, DBPASS);
+global $pdoBulk = new PdoBulk($conn);
+global $pdoBulk->setAutoflush(100);
 // columnes to import
-$column_names = array(
+global $column_names = array(
     'crm_long_desc',
     'uup_circle',
     'is_prorated',
@@ -64,7 +63,13 @@ $column_names = array(
     'crm_fup_desc',
     'cross_sell_caption',
     'crm_pack_rank',
-    'additional_categories'
+    'additional_categories',
+    'Type',
+    'ItemGroupCode',
+    'ItemID',
+    'OrganizationCode',
+    'UnitOfMeasure',
+    'Category'
 );
 
 $log = array(
@@ -91,8 +96,25 @@ try {
         $data1         = array();
         $data2         = array();
         $simpleXmlNode = simplexml_load_string($node);
+        insertData($simpleXmlNode, $column_names);
+        // $data1["ItemID"] = (string)$simpleXmlNode["ItemID"];
+        // checkIfRecordExist($conn, $data1["ItemID"]);
+        // die();
+    }
+    echo $log['details'] = "$i records Imported successfully :)";
+    $ioFiles->move('Processed');
+}
+catch (Exception $e) {
+    echo $log['details'] = 'Failed data import in Postpaid Packs. Details : ' . $e->getMessage();
+    $log['status'] = 'ERROR';
+}
+$time_elapsed_secs     = microtime(true) - $start;
+$log['execution_time'] = round($time_elapsed_secs, 4);
+$pdoBulk->persist('data_import_logs', $log);
 
-        foreach ($simpleXmlNode->AdditionalAttributeList->AdditionalAttribute as $attribute) {
+
+function insertData($simpleXmlNode, $column_names){
+    foreach ($simpleXmlNode->AdditionalAttributeList->AdditionalAttribute as $attribute) {
             $attribute["Name"]                  = strtolower(str_replace('-', '_', (string) $attribute["Name"]));
             $data1[(string) $attribute["Name"]] = (string) $attribute["Value"];
         }
@@ -107,6 +129,14 @@ try {
         $data1['UnitCost']                = $simpleXmlNode->PrimaryInformation['UnitCost'];
         $data1['CircleCode']              = $simpleXmlNode->PrimaryInformation['CircleCode'];
         
+        $data1["Action"] = (string)$simpleXmlNode["Action"];
+        $data1["Type"] = (string)$simpleXmlNode["Type"];
+        $data1["ItemGroupCode"] = (string)$simpleXmlNode["ItemGroupCode"];
+        $data1["ItemID"] = (string)$simpleXmlNode["ItemID"];
+        $data1["OrganizationCode"] = (string)$simpleXmlNode["OrganizationCode"];
+        $data1["UnitOfMeasure"] = (string)$simpleXmlNode["UnitOfMeasure"];
+        $data1["Category"] = (string)$simpleXmlNode["Category"];
+
         // Data correction & re-assignment of indexes
         foreach ($column_names as $column) {
             if (!empty($data1[$column])) {
@@ -117,15 +147,17 @@ try {
         }
         
         $i++;
-        // $pdoBulk->persist('postpaid_pack', $data2);    
+        $pdoBulk->persist('postpaid_pack', $data2);   
+}
+
+function checkIfRecordExist($pdo, $ItemID){
+    // select a particular user by id
+    $stmt = $pdo->prepare("SELECT count(*) FROM postpaid_pack WHERE ItemID=:ItemID and Type='Item'");
+    $stmt->execute(['ItemID' => $ItemID]); 
+    $item = $stmt->fetch();
+    if( is_array($item) && @$item[0] > 0 ){
+        return true;
+    } else {
+        return false;
     }
-    echo $log['details'] = "$i records Imported successfully :)";
-    $ioFiles->move('Processed');
 }
-catch (Exception $e) {
-    echo $log['details'] = 'Failed data import in Postpaid Packs. Details : ' . $e->getMessage();
-    $log['status'] = 'ERROR';
-}
-$time_elapsed_secs     = microtime(true) - $start;
-$log['execution_time'] = round($time_elapsed_secs, 4);
-$pdoBulk->persist('data_import_logs', $log);

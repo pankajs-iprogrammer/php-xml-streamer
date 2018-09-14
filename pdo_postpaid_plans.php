@@ -97,7 +97,13 @@ $column_names = array(
     'ShortDescription',
     'Status',
     'UnitCost',
-    'CircleCode'
+    'CircleCode',
+    'Type',
+    'ItemGroupCode',
+    'ItemID',
+    'OrganizationCode',
+    'UnitOfMeasure',
+    'Category'
 );
 
 $log = array(
@@ -140,6 +146,15 @@ try {
         $data1['Status']                  = $simpleXmlNode->PrimaryInformation['Status'];
         $data1['UnitCost']                = $simpleXmlNode->PrimaryInformation['UnitCost'];
         $data1['CircleCode']              = $simpleXmlNode->PrimaryInformation['CircleCode'];
+
+        $data1["Action"] = (string)$simpleXmlNode["Action"];
+        $data1["Type"] = (string)$simpleXmlNode["Type"];
+        $data1["ItemGroupCode"] = (string)$simpleXmlNode["ItemGroupCode"];
+        $data1["ItemID"] = (string)$simpleXmlNode["ItemID"];
+        $data1["OrganizationCode"] = (string)$simpleXmlNode["OrganizationCode"];
+        $data1["UnitOfMeasure"] = (string)$simpleXmlNode["UnitOfMeasure"];
+        $data1["Category"] = (string)$simpleXmlNode["Category"];
+
         
         // Data correction & re-assignment of indexes
         foreach ($column_names as $column) {
@@ -150,7 +165,7 @@ try {
             }
         }
         
-        // $pdoBulk->persist('postpaid_plan', $data2);
+        $pdoBulk->persist('postpaid_plan', $data2);
         $i++;
     }
     
