@@ -1,18 +1,20 @@
 <?php
 $start = microtime(true);
+$table = 'postpaid_pack';
 
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/config/config.php';
+require __DIR__ . '/functions.php';
 
 use PdoBulk\PdoBulk;
 use PdoBulk\PdoBulkSubquery;
 
 // database connection
-global $conn    = new \PDO("mysql:host=" . DBHOST . ";dbname=" . DBNAME, DBUSER, DBPASS);
-global $pdoBulk = new PdoBulk($conn);
-global $pdoBulk->setAutoflush(100);
+$conn    = new \PDO("mysql:host=" . DBHOST . ";dbname=" . DBNAME, DBUSER, DBPASS);
+$pdoBulk = new PdoBulk($conn);
+$pdoBulk->setAutoflush(100);
 // columnes to import
-global $column_names = array(
+$column_names = array(
     'crm_long_desc',
     'uup_circle',
     'is_prorated',
@@ -88,20 +90,31 @@ try {
     if (!is_array($file) || @$file[0] == '') {
         die('File not available');
     }
-    
+    $maxID = getMaxId($conn, $table);
+    // echo '\nMax ID : ' . $maxID . '\n';
     $streamer = Prewk\XmlStringStreamer::createStringWalkerParser(PATH . $file[0]);
     $i        = 0;
     echo "Postpaid packs data import started : ";
     while ($node = $streamer->getNode()) {
-        $data1         = array();
-        $data2         = array();
-        $simpleXmlNode = simplexml_load_string($node);
-        insertData($simpleXmlNode, $column_names);
-        // $data1["ItemID"] = (string)$simpleXmlNode["ItemID"];
-        // checkIfRecordExist($conn, $data1["ItemID"]);
-        // die();
+        $simpleXmlNode   = simplexml_load_string($node);
+        $action          = (string) $simpleXmlNode["Action"];
+        $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];
+        
+        if ($action == 'Manage') {
+            $id = (int) checkIfRecordExist($conn, $data1["ItemID"], $table);
+            if ($id > 0) {
+                // echo '\n----Update----\n';
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $id, $table);
+            } else {
+                $maxID++;
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $maxID, $table);
+            }
+        } else {
+            deleteData($conn, $simpleXmlNode, $table);
+        }
+        $i++;
     }
-    echo $log['details'] = "$i records Imported successfully :)";
+    echo $log['details'] = "$i records Imported successfully :)\n";
     $ioFiles->move('Processed');
 }
 catch (Exception $e) {
@@ -113,51 +126,43 @@ $log['execution_time'] = round($time_elapsed_secs, 4);
 $pdoBulk->persist('data_import_logs', $log);
 
 
-function insertData($simpleXmlNode, $column_names){
+function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
+{
+    $data1 = array();
+    $data2 = array();
+    
     foreach ($simpleXmlNode->AdditionalAttributeList->AdditionalAttribute as $attribute) {
-            $attribute["Name"]                  = strtolower(str_replace('-', '_', (string) $attribute["Name"]));
-            $data1[(string) $attribute["Name"]] = (string) $attribute["Value"];
-        }
-        
-        $data1['AssumeInfiniteInventory'] = $simpleXmlNode->PrimaryInformation['AssumeInfiniteInventory'];
-        $data1['CostCurrency']            = $simpleXmlNode->PrimaryInformation['CostCurrency'];
-        $data1['Description']             = $simpleXmlNode->PrimaryInformation['Description'];
-        $data1['ManufacturerItemDesc']    = $simpleXmlNode->PrimaryInformation['ManufacturerItemDesc'];
-        $data1['ManufacturerName']        = $simpleXmlNode->PrimaryInformation['ManufacturerName'];
-        $data1['ShortDescription']        = $simpleXmlNode->PrimaryInformation['ShortDescription'];
-        $data1['Status']                  = $simpleXmlNode->PrimaryInformation['Status'];
-        $data1['UnitCost']                = $simpleXmlNode->PrimaryInformation['UnitCost'];
-        $data1['CircleCode']              = $simpleXmlNode->PrimaryInformation['CircleCode'];
-        
-        $data1["Action"] = (string)$simpleXmlNode["Action"];
-        $data1["Type"] = (string)$simpleXmlNode["Type"];
-        $data1["ItemGroupCode"] = (string)$simpleXmlNode["ItemGroupCode"];
-        $data1["ItemID"] = (string)$simpleXmlNode["ItemID"];
-        $data1["OrganizationCode"] = (string)$simpleXmlNode["OrganizationCode"];
-        $data1["UnitOfMeasure"] = (string)$simpleXmlNode["UnitOfMeasure"];
-        $data1["Category"] = (string)$simpleXmlNode["Category"];
-
-        // Data correction & re-assignment of indexes
-        foreach ($column_names as $column) {
-            if (!empty($data1[$column])) {
-                @$data2[$column] = addslashes($data1[$column]);
-            } else {
-                @$data2[$column] = '-';
-            }
-        }
-        
-        $i++;
-        $pdoBulk->persist('postpaid_pack', $data2);   
-}
-
-function checkIfRecordExist($pdo, $ItemID){
-    // select a particular user by id
-    $stmt = $pdo->prepare("SELECT count(*) FROM postpaid_pack WHERE ItemID=:ItemID and Type='Item'");
-    $stmt->execute(['ItemID' => $ItemID]); 
-    $item = $stmt->fetch();
-    if( is_array($item) && @$item[0] > 0 ){
-        return true;
-    } else {
-        return false;
+        $attribute["Name"]                  = strtolower(str_replace('-', '_', (string) $attribute["Name"]));
+        $data1[(string) $attribute["Name"]] = (string) $attribute["Value"];
     }
+    
+    $data1['AssumeInfiniteInventory'] = $simpleXmlNode->PrimaryInformation['AssumeInfiniteInventory'];
+    $data1['CostCurrency']            = $simpleXmlNode->PrimaryInformation['CostCurrency'];
+    $data1['Description']             = $simpleXmlNode->PrimaryInformation['Description'];
+    $data1['ManufacturerItemDesc']    = $simpleXmlNode->PrimaryInformation['ManufacturerItemDesc'];
+    $data1['ManufacturerName']        = $simpleXmlNode->PrimaryInformation['ManufacturerName'];
+    $data1['ShortDescription']        = $simpleXmlNode->PrimaryInformation['ShortDescription'];
+    $data1['Status']                  = $simpleXmlNode->PrimaryInformation['Status'];
+    $data1['UnitCost']                = $simpleXmlNode->PrimaryInformation['UnitCost'];
+    $data1['CircleCode']              = $simpleXmlNode->PrimaryInformation['CircleCode'];
+    
+    $data1["Action"]           = (string) $simpleXmlNode["Action"];
+    $data1["Type"]             = (string) $simpleXmlNode["Type"];
+    $data1["ItemGroupCode"]    = (string) $simpleXmlNode["ItemGroupCode"];
+    $data1["ItemID"]           = (string) $simpleXmlNode["ItemID"];
+    $data1["OrganizationCode"] = (string) $simpleXmlNode["OrganizationCode"];
+    $data1["UnitOfMeasure"]    = (string) $simpleXmlNode["UnitOfMeasure"];
+    $data1["Category"]         = (string) $simpleXmlNode["Category"];
+    
+    // Data correction & re-assignment of indexes
+    foreach ($column_names as $column) {
+        if (!empty($data1[$column])) {
+            @$data2[$column] = addslashes($data1[$column]);
+        } else {
+            @$data2[$column] = '-';
+        }
+    }
+    $data2["id"] = $id;
+    
+    $pdoBulk->persist("$table", $data2);
 }

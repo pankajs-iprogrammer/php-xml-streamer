@@ -1,8 +1,10 @@
 <?php
 $start = microtime(true);
+$table = 'prepaid_pack';
 
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/config/config.php';
+require __DIR__ . '/functions.php';
 
 use PdoBulk\PdoBulk;
 use PdoBulk\PdoBulkSubquery;
@@ -83,7 +85,7 @@ $column_names = array(
     'unitcost',
     'circle_code',
     'item_group_code',
-    'item_id',
+    'ItemID',
     'organization_code',
     'unit_of_measure',
     'type',
@@ -103,6 +105,8 @@ try {
     $ioFiles = new \Kedrigern\phpIO\Files();
     $ioFiles = $ioFiles->dir(PATH . 'VTOPUP*.xml');
     $file    = $ioFiles->getFiles();
+    $maxID = getMaxId($conn, $table);
+
     if (!is_array($file) || @$file[0] == '') {
         throw new Exception('File not found');
     }
@@ -112,11 +116,42 @@ try {
     echo "\nPrepaid packs data import started : ";
     
     while ($node = $streamer->getNode()) {
-        $data1         = array();
-        $data2         = array();
         $simpleXmlNode = simplexml_load_string($node);
+        $action          = (string) $simpleXmlNode["Action"];
+        $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];
         
-        foreach ($simpleXmlNode->AdditionalAttributeList->AdditionalAttribute as $attribute) {
+        if ($action == 'Manage') {
+            $id = (int) checkIfRecordExist($conn, $data1["ItemID"], $table);
+            if ($id > 0) {
+                // echo "<pre>"; print_r($id); die();
+                // echo '\n----Update----\n';
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $id, $table);
+            } else {
+                $maxID++;
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $maxID, $table);
+            }
+        } else {
+            deleteData($conn, $simpleXmlNode, $table);
+        }                
+        $i++;        
+    }
+    echo $log['details'] = "$i records Imported successfully :)\n";
+    // $ioFiles->move('Processed');
+}
+catch (Exception $e) {
+    echo $log['details'] = 'Failed data import in Prepaid Packs. Details : ' . $e->getMessage();
+    $log['status'] = 'ERROR';
+}
+$time_elapsed_secs     = microtime(true) - $start;
+$log['execution_time'] = round($time_elapsed_secs, 4);
+$pdoBulk->persist('data_import_logs', $log);
+
+function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
+{
+    $data1 = array();
+    $data2 = array();
+    
+    foreach ($simpleXmlNode->AdditionalAttributeList->AdditionalAttribute as $attribute) {
             $attribute["Name"]                  = strtolower(str_replace('-', '_', (string) $attribute["Name"]));
             $data1[(string) $attribute["Name"]] = (string) $attribute["Value"];
         }
@@ -132,7 +167,7 @@ try {
         $data1['unitcost']                  = $simpleXmlNode->PrimaryInformation['UnitCost'];
         $data1['circle_code']               = $simpleXmlNode->PrimaryInformation['CircleCode'];
         $data1['item_group_code']           = $simpleXmlNode['ItemGroupCode'];
-        $data1['item_id']                   = $simpleXmlNode['ItemID'];
+        $data1['ItemID']                   = $simpleXmlNode['ItemID'];
         $data1['organization_code']         = $simpleXmlNode['OrganizationCode'];
         $data1['unit_of_measure']           = $simpleXmlNode['UnitOfMeasure'];
         $data1['type']                      = $simpleXmlNode['Type'];
@@ -147,16 +182,6 @@ try {
             }
         }
         
-        $i++;
-        $pdoBulk->persist('prepaid_pack', $data2);    
-    }
-    echo $log['details'] = "$i records Imported successfully :)";
-    $ioFiles->move('Processed');
+    $data2["id"] = $id;    
+    $pdoBulk->persist("$table", $data2);
 }
-catch (Exception $e) {
-    echo $log['details'] = 'Failed data import in Prepaid Packs. Details : ' . $e->getMessage();
-    $log['status'] = 'ERROR';
-}
-$time_elapsed_secs     = microtime(true) - $start;
-$log['execution_time'] = round($time_elapsed_secs, 4);
-$pdoBulk->persist('data_import_logs', $log);
