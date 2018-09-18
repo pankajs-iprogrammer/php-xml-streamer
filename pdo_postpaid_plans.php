@@ -109,7 +109,7 @@ $column_names = array(
 );
 
 $log = array(
-    'module' => 'POSTPAID-PLAN',
+    'module' => 'Postpaid Plan',
     'timestamp' => date('Y-m-d h:i:s'),
     'status' => 'SUCCESS',
     'details' => '',
@@ -152,7 +152,7 @@ try {
     }
     
     echo $log['details'] = "$i records Imported successfully :)\n";
-    // $ioFiles->move('Processed');
+    $ioFiles->move('Processed');
 }
 catch (Exception $e) {
     echo $log['details'] = 'Failed data import in Postpaid Plans. Details : ' . $e->getMessage();

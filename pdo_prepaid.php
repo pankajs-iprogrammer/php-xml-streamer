@@ -93,7 +93,7 @@ $column_names = array(
 );
 
 $log = array(
-    'module' => 'POSTPAID-PLAN',
+    'module' => 'Prepaid Packs',
     'timestamp' => date('Y-m-d h:i:s'),
     'status' => 'SUCCESS',
     'details' => '',
@@ -136,7 +136,7 @@ try {
         $i++;        
     }
     echo $log['details'] = "$i records Imported successfully :)\n";
-    // $ioFiles->move('Processed');
+    $ioFiles->move('Processed');
 }
 catch (Exception $e) {
     echo $log['details'] = 'Failed data import in Prepaid Packs. Details : ' . $e->getMessage();

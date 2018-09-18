@@ -75,7 +75,7 @@ $column_names = array(
 );
 
 $log = array(
-    'module' => 'POSTPAID-PLAN',
+    'module' => 'Postpaid Packs',
     'timestamp' => date('Y-m-d h:i:s'),
     'status' => 'SUCCESS',
     'details' => '',
