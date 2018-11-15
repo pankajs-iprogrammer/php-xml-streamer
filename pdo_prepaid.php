@@ -89,7 +89,9 @@ $column_names = array(
     'organization_code',
     'unit_of_measure',
     'type',
-    'category'
+    'category',
+    'created_at',
+    'updated_at'
 );
 
 $log = array(
@@ -116,23 +118,21 @@ try {
     echo "\nPrepaid packs data import started : ";
     
     while ($node = $streamer->getNode()) {
-        $simpleXmlNode = simplexml_load_string($node);
+        $simpleXmlNode   = simplexml_load_string($node);
         $action          = (string) $simpleXmlNode["Action"];
-        $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];
-        
+        $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];        
         if ($action == 'Manage') {
-            $id = (int) checkIfRecordExist($conn, $data1["ItemID"], $table);
-            if ($id > 0) {
-                // echo "<pre>"; print_r($id); die();
-                // echo '\n----Update----\n';
-                insertData($pdoBulk, $simpleXmlNode, $column_names, $id, $table);
+            $record = checkIfRecordExist($conn, $data1["ItemID"], $table);
+            if ((int) $record['id'] > 0) {
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, 1);
             } else {
                 $maxID++;
-                insertData($pdoBulk, $simpleXmlNode, $column_names, $maxID, $table);
+                @$record['id'] = $maxID;
+                insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, 0);
             }
         } else {
             deleteData($conn, $simpleXmlNode, $table);
-        }                
+        }
         $i++;        
     }
     echo $log['details'] = "$i records Imported successfully :)\n";
@@ -146,7 +146,7 @@ $time_elapsed_secs     = microtime(true) - $start;
 $log['execution_time'] = round($time_elapsed_secs, 4);
 $pdoBulk->persist('data_import_logs', $log);
 
-function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
+function insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, $flag = 0)
 {
     $data1 = array();
     $data2 = array();
@@ -173,6 +173,14 @@ function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
         $data1['type']                      = $simpleXmlNode['Type'];
         $data1['category']                  = $simpleXmlNode['Category'];
         
+        if( $flag == 1 ){
+            $data1['updated_at'] = date("Y-m-d h:i:s");
+            $data1['created_at'] = $record['created_at'];
+        } else {
+            $data1['updated_at'] = date("Y-m-d h:i:s");
+            $data1['created_at'] = date("Y-m-d h:i:s");
+        }
+
         // Data correction & re-assignment of indexes
         foreach ($column_names as $column) {
             if (!empty($data1[$column])) {
@@ -182,6 +190,6 @@ function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
             }
         }
         
-    $data2["id"] = $id;    
+    $data2["id"] = $record['id'];    
     $pdoBulk->persist("$table", $data2);
 }

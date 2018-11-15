@@ -3,11 +3,11 @@
 function checkIfRecordExist($pdo, $ItemID, $table)
 {
     // select a particular user by id
-    $stmt = $pdo->prepare("SELECT id FROM $table WHERE ItemID=:ItemID");
+    $stmt = $pdo->prepare("SELECT * FROM $table WHERE ItemID=:ItemID");
     $stmt->execute(['ItemID' => $ItemID]);
     $item = $stmt->fetchAll();
     if (is_array($item)) {
-        return @$item[count($item) - 1]['id'];
+        return @$item[count($item) - 1];
     } else {
         return false;
     }

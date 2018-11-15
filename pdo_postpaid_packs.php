@@ -71,7 +71,9 @@ $column_names = array(
     'ItemID',
     'OrganizationCode',
     'UnitOfMeasure',
-    'Category'
+    'Category',
+    'created_at',
+    'updated_at'
 );
 
 $log = array(
@@ -85,36 +87,39 @@ $log = array(
 try {
     $ioFiles = new \Kedrigern\phpIO\Files();
     $ioFiles = $ioFiles->dir(PATH . 'POSTPAID-PACK*.xml');
-    $file    = $ioFiles->getFiles();
+    $files    = $ioFiles->getFiles();
     
-    if (!is_array($file) || @$file[0] == '') {
+    if (!is_array($files) || @$files[0] == '') {
         die('File not available');
     }
-    $maxID = getMaxId($conn, $table);
-    // echo '\nMax ID : ' . $maxID . '\n';
-    $streamer = Prewk\XmlStringStreamer::createStringWalkerParser(PATH . $file[0]);
-    $i        = 0;
-    echo "Postpaid packs data import started : ";
-    while ($node = $streamer->getNode()) {
-        $simpleXmlNode   = simplexml_load_string($node);
-        $action          = (string) $simpleXmlNode["Action"];
-        $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];
-        
-        if ($action == 'Manage') {
-            $id = (int) checkIfRecordExist($conn, $data1["ItemID"], $table);
-            if ($id > 0) {
-                // echo '\n----Update----\n';
-                insertData($pdoBulk, $simpleXmlNode, $column_names, $id, $table);
+
+    foreach ($files as $file) {
+        echo "---$file---\n";
+        $maxID = getMaxId($conn, $table);
+        $streamer = Prewk\XmlStringStreamer::createStringWalkerParser(PATH . $file);
+        $i        = 0;
+        echo "Postpaid packs data import started : ";
+        while ($node = $streamer->getNode()) {
+            $simpleXmlNode   = simplexml_load_string($node);
+            $action          = (string) $simpleXmlNode["Action"];
+            $data1["ItemID"] = (string) $simpleXmlNode["ItemID"];
+            
+            if ($action == 'Manage') {
+                $record = checkIfRecordExist($conn, $data1["ItemID"], $table);
+                if ((int) $record['id'] > 0) {
+                    insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, 1);
+                } else {
+                    $maxID++;
+                    @$record['id'] = $maxID;
+                    insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, 0);
+                }
             } else {
-                $maxID++;
-                insertData($pdoBulk, $simpleXmlNode, $column_names, $maxID, $table);
+                deleteData($conn, $simpleXmlNode, $table);
             }
-        } else {
-            deleteData($conn, $simpleXmlNode, $table);
+            $i++;
         }
-        $i++;
+        echo $log['details'] .= "$i records Imported successfully from ".$file." :)\n";        
     }
-    echo $log['details'] = "$i records Imported successfully :)\n";
     $ioFiles->move('Processed');
 }
 catch (Exception $e) {
@@ -126,7 +131,7 @@ $log['execution_time'] = round($time_elapsed_secs, 4);
 $pdoBulk->persist('data_import_logs', $log);
 
 
-function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
+function insertData($pdoBulk, $simpleXmlNode, $column_names, $record, $table, $flag = 0)
 {
     $data1 = array();
     $data2 = array();
@@ -154,6 +159,14 @@ function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
     $data1["UnitOfMeasure"]    = (string) $simpleXmlNode["UnitOfMeasure"];
     $data1["Category"]         = (string) $simpleXmlNode["Category"];
     
+    if( $flag == 1 ){
+        $data1['updated_at'] = date("Y-m-d h:i:s");
+        $data1['created_at'] = $record['created_at'];
+    } else {
+        $data1['updated_at'] = date("Y-m-d h:i:s");
+        $data1['created_at'] = date("Y-m-d h:i:s");
+    }
+
     // Data correction & re-assignment of indexes
     foreach ($column_names as $column) {
         if (!empty($data1[$column])) {
@@ -162,7 +175,6 @@ function insertData($pdoBulk, $simpleXmlNode, $column_names, $id = 0, $table)
             @$data2[$column] = '-';
         }
     }
-    $data2["id"] = $id;
-    
+    $data2["id"] = $record['id'];    
     $pdoBulk->persist("$table", $data2);
 }
