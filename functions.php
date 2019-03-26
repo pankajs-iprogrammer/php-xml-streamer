@@ -32,3 +32,44 @@ function deleteData($pdo, $ItemID, $table)
     $stmt->execute(['ItemID' => $ItemID]);
     return true;
 }
+
+function showError($error, $row){
+    echo json_encode(array( "error" => $error, "data" => $row ));
+    die();
+}
+
+function exception_handler($exception) {
+  echo "Uncaught exception: " , $exception->getMessage(), "\n";
+}
+
+function createQuery($table, $columns, $data) {
+    $query = "INSERT INTO $table (".implode(",", $columns).") VALUES ";
+    $values = "";
+    $update = " ON DUPLICATE KEY UPDATE ";
+    foreach ($columns as $column) {
+        $update .= "$column = values($column), ";    
+    }
+    $update = substr($update, 0, strlen($update) - 2);
+    foreach ($data as $i => $row) {
+        $i++;
+        $flag = 0;
+        $values .= '('.implode(",", $row).'), ';
+        if($i % MAX_QUERY_SIZE == 0) {
+          $flag = 1;
+          $values = substr($values, 0, strlen($values) - 2);
+          $insert_query = $query . $values. $update;
+          executeQuery($insert_query);
+          $values = '';  
+        }
+    }
+    if ($flag === 0) {
+        executeQuery($insert_query);
+    }
+    return true;
+}
+
+function executeQuery($query) {
+    $result = mysqli_query( $GLOBALS["conn"], $query)
+    OR showError(mysqli_error($GLOBALS["conn"]), $query);
+    return ($result) ? true : false;
+}
